@@ -7,12 +7,23 @@ use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
 use Psr\Log\LoggerInterface;
 
 class ProcessQueueCommand extends Command
 {
+    use ContainerAwareTrait;
+
+    private $params;
+
+    private $logger;
+
+    private $application_directory;
+
+    private $queue_path;
+
     public function __construct(LoggerInterface $logger = null, ParameterBagInterface $params = null)
     {
         // Set in the parameters section of config/services.yaml.
@@ -78,18 +89,20 @@ class ProcessQueueCommand extends Command
      * @return bool
      *   Whether or not the queue file was written.
      */
-    private function updateQueue($entries)
+    private function updateQueue(array $entries): bool
     {
         $updated_queue = implode(PHP_EOL, $entries);
 
+        $update = false;
         $fp = fopen($this->queue_path, "w");
         if (flock($fp, LOCK_EX)) {
             fwrite($fp, $updated_queue);
             fflush($fp);
             flock($fp, LOCK_UN);
-            return true;
+            $update = true;
         }
         fclose($fp);
+        return $update;
     }
 
     /**
@@ -104,12 +117,13 @@ class ProcessQueueCommand extends Command
      * @param string $timestamp
      *   ISO8601 timestamp.
      */
-    private function log($return_code, $nid, $path_to_yaml, $timestamp)
+    private function log(int $return_code, string $nid, string $path_to_yaml, string $timestamp)
     {
         $details = array(
             'node ID' => $nid,
             'settings file' => $path_to_yaml,
-            'exit code' => $return_code
+            'exit code' => $return_code,
+            'time stamp' => $timestamp,
         );
 
         if ($this->logger && $return_code === 0) {

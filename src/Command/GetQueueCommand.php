@@ -7,12 +7,21 @@ use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
 use Psr\Log\LoggerInterface;
 
 class GetQueueCommand extends Command
 {
+    use ContainerAwareTrait;
+
+    private $params;
+
+    private $logger;
+
+    private $application_directory;
+
     public function __construct(LoggerInterface $logger = null, ParameterBagInterface $params = null)
     {
         // Set in the parameters section of config/services.yaml.
@@ -41,12 +50,11 @@ class GetQueueCommand extends Command
         $output_format = $input->getOption('output_format');
 
         if (!file_exists($this->queue_path)) {
-            $this->logger->info("Queue file not found", $details);
+            $this->logger->info("Queue file not found");
             return;
-        } 
+        }
 
         $entries = file($this->queue_path, FILE_IGNORE_NEW_LINES);
-        $num_entries_in_queue = count($entries);
         if (is_null($output_format) || $output_format == 'json') {
             $entries_as_json = json_encode($entries);
             print $entries_as_json;
